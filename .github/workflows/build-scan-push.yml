@@ -1,11 +1,7 @@
 name: Build/Scan/Push Containers
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - sast-demo/**
+  workflow_dispatch
 
 jobs:
   docker_build:
@@ -15,10 +11,6 @@ jobs:
       packages: write
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - dockerfile: ./sast-demo
-            image: wizsensordemos.azurecr.io/sast-demo
 
     steps:
       - name: Checkout
@@ -34,29 +26,34 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ matrix.image }}
+          images: alconen/fedora-test
           tags: |
             type=ref,event=branch
             type=ref,event=pr
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
 
-      - name: Login to ACR
-        if: github.event_name != 'pull_request'
+      - name: Login to Dockerhub
         uses: docker/login-action@v3
         with:
-          registry: wizsensordemos.azurecr.io
-          username: ${{ secrets.ACR_USERNAME }}
-          password: ${{ secrets.ACR_PASSWORD }}
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PAT }}
+
+      - name: Scan Container with WizCLI
+        run: | 
+          curl -Lo wizcli https://wizcli.app.wiz.io/latest/wizcli-linux-amd64
+          chmod +x wizcli
+          ./wizcli auth --id "${{ secrets.WIZ_CLIENT_ID }}" --secret "${{ secrets.WIZ_CLIENT_SECRET }}"
+          ./wizcli docker scan --image ${{ steps.meta.outputs.tags }} --dockerfile "./sast-demo/Dockerfile" --no-publish
+          
 
       - name: Build and Publish to Docker
         id: build-and-push
-        if: github.event_name != 'pull_request'
         uses: docker/build-push-action@v6
         with:
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          context: ${{ matrix.dockerfile }}
+          context: ./sast-demo
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
@@ -65,10 +62,5 @@ jobs:
       - name: Integrate CI data with Wiz
         run: |
           docker pull ${{ steps.meta.outputs.tags }}
-          export WIZ_ENV=demo
-          curl -Lo wizcli https://wizcli.app.wiz.io/latest/wizcli-linux-amd64
-          chmod +x wizcli
-          ./wizcli auth --id "${{ secrets.WIZ_CLIENT_ID }}" --secret "${{ secrets.WIZ_CLIENT_SECRET }}"
-          ./wizcli docker scan --image ${{ steps.meta.outputs.tags }} --dockerfile "${{ matrix.dockerfile }}/Dockerfile" -p no-fail-vuln-policy
           ./wizcli docker tag --image ${{ steps.meta.outputs.tags }}
         continue-on-error: true
