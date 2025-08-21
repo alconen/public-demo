@@ -48,7 +48,7 @@ jobs:
           curl -Lo wizcli https://wizcli.app.wiz.io/latest/wizcli-linux-amd64
           chmod +x wizcli
           ./wizcli auth --id "${{ secrets.WIZ_CLIENT_ID }}" --secret "${{ secrets.WIZ_SECRET_ID }}"
-          ./wizcli docker scan --image  --dockerfile "./sast-demo/Dockerfile" --no-publish
+          ./wizcli docker scan --image  --dockerfile ./sast-demo/Dockerfile --no-publish
 
       - name: Docker push
         run: |
