@@ -39,25 +39,20 @@ jobs:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_PAT }}
 
+      - name: Build container
+        run: |
+          docker build -t alconen/fedora-test ./sast-demo
+
       - name: Scan Container with WizCLI
         run: | 
           curl -Lo wizcli https://wizcli.app.wiz.io/latest/wizcli-linux-amd64
           chmod +x wizcli
           ./wizcli auth --id "${{ secrets.WIZ_CLIENT_ID }}" --secret "${{ secrets.WIZ_SECRET_ID }}"
-          ./wizcli docker scan --image ${{ steps.meta.outputs.tags }} --dockerfile "./sast-demo/Dockerfile" --no-publish
-          
+          ./wizcli docker scan --image  --dockerfile "./sast-demo/Dockerfile" --no-publish
 
-      - name: Build and Publish to Docker
-        id: build-and-push
-        uses: docker/build-push-action@v6
-        with:
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          context: ./sast-demo
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+      - name: Docker push
+        run: |
+          docker push alconen/fedora-test
 
       - name: Integrate CI data with Wiz
         run: |
