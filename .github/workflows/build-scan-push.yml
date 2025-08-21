@@ -53,9 +53,3 @@ jobs:
       - name: Docker push
         run: |
           docker push alconen/fedora-test
-
-      - name: Integrate CI data with Wiz
-        run: |
-          docker pull ${{ steps.meta.outputs.tags }}
-          ./wizcli docker tag --image ${{ steps.meta.outputs.tags }}
-        continue-on-error: true
